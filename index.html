@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#87ceeb">
+<title>Nook Theft Auto V: Cool Crossing — HVAC Simulator</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#87ceeb; font-family:'Trebuchet MS',Verdana,sans-serif; }
+  #game { position:fixed; inset:0; }
+  canvas.webgl { display:block; }
+  .hud { position:fixed; pointer-events:none; z-index:10; }
+  #topbar { top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:10px 14px; }
+  .pill { background:rgba(20,24,32,.78); color:#fff; border-radius:14px; padding:8px 14px; font-size:14px; backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,.15); box-shadow:0 4px 18px rgba(0,0,0,.3); }
+  #stats { display:flex; gap:10px; align-items:center; }
+  #bells { color:#ffe27a; font-weight:900; font-size:18px; }
+  #stars { color:#ff5d5d; font-size:18px; letter-spacing:2px; }
+  #right { text-align:right; }
+  #clock { font-size:20px; font-weight:900; }
+  #minimap-wrap { margin-top:8px; background:rgba(20,24,32,.78); border-radius:14px; padding:8px; border:1px solid rgba(255,255,255,.15); }
+  #minimap { display:block; border-radius:8px; background:#7ec850; }
+  #jobs { left:14px; top:90px; width:250px; display:flex; flex-direction:column; gap:8px; }
+  .job-card { background:rgba(20,24,32,.8); color:#fff; border-radius:12px; padding:10px 12px; font-size:13px; border-left:5px solid #ff9f43; }
+  .job-card.urgent { border-left-color:#ff4757; animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { transform:scale(1.03); } }
+  #toast { left:50%; bottom:110px; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; }
+  .toast-msg { background:rgba(20,24,32,.9); color:#fff; padding:8px 18px; border-radius:20px; font-size:14px; border:1px solid #ffe27a; animation:fadeup 3s forwards; }
+  @keyframes fadeup { 0%{opacity:0; transform:translateY(10px);} 10%{opacity:1; transform:none;} 80%{opacity:1;} 100%{opacity:0;} }
+  #controls-hint { bottom:12px; left:14px; font-size:12px; line-height:1.7; max-width:340px; }
+  #controls-hint b { color:#ffe27a; }
+  #speedo { bottom:12px; right:14px; text-align:right; font-size:13px; }
+  #speedo b { font-size:28px; }
+  #crosshair { left:50%; top:50%; transform:translate(-50%,-50%); color:#fff; font-size:14px; opacity:.7; }
+  .marker { position:fixed; z-index:9; pointer-events:none; transform:translate(-50%,-100%); text-align:center; font-weight:900; font-size:13px; }
+  .marker .ico { font-size:26px; display:block; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); animation:bob 1s infinite alternate; }
+  @keyframes bob { to { transform:translateY(-6px); } }
+  .marker .lbl { background:rgba(0,0,0,.75); color:#fff; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+  /* overlays */
+  .overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:rgba(10,15,25,.72); backdrop-filter:blur(8px); }
+  .panel { background:linear-gradient(160deg,#fffdf5,#ffeecb); border-radius:22px; padding:28px 32px; max-width:640px; width:92%; max-height:92vh; overflow:auto; color:#2d2a26; box-shadow:0 20px 80px rgba(0,0,0,.5); border:4px solid #8b5e34; }
+  .panel h1 { font-size:30px; line-height:1.1; }
+  .panel h1 span { color:#e17055; }
+  .panel p { font-size:14px; margin:10px 0; line-height:1.55; }
+  .tagrow { display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .tag { font-size:12px; font-weight:900; padding:4px 10px; border-radius:20px; color:#fff; }
+  .btn { pointer-events:auto; cursor:pointer; display:inline-block; margin-top:12px; background:#27ae60; color:#fff; font-weight:900; font-size:18px; border:none; border-radius:14px; padding:14px 28px; box-shadow:0 6px 0 #1e8449; transition:.15s; }
+  .btn:active { transform:translateY(4px); box-shadow:none; }
+  .btn.blue { background:#0984e3; box-shadow:0 6px 0 #065a9e; }
+  .btn.red { background:#d63031; box-shadow:0 6px 0 #8e1f20; }
+  kbd { background:#2d3436; color:#fff; border-radius:6px; padding:2px 7px; font-size:12px; font-family:monospace; }
+  /* HVAC minigame */
+  #hvac { display:none; }
+  #hvac .panel { max-width:560px; background:linear-gradient(160deg,#2d3436,#636e72); color:#fff; border-color:#00cec9; }
+  #gauge-wrap { background:#111; border-radius:14px; padding:14px; margin:12px 0; }
+  #pressure-bar { height:26px; background:linear-gradient(90deg,#d63031 0%,#d63031 25%,#00b894 35%,#00b894 65%,#d63031 75%,#d63031 100%); border-radius:13px; position:relative; overflow:hidden; }
+  #needle { position:absolute; top:-2px; bottom:-2px; width:6px; background:#fff; box-shadow:0 0 10px #fff; border-radius:3px; }
+  #recharge-bar { height:22px; background:#222; border-radius:11px; position:relative; overflow:hidden; margin-top:10px; border:1px solid #555; }
+  #recharge-zone { position:absolute; top:0; bottom:0; background:rgba(0,184,148,.7); }
+  #recharge-cursor { position:absolute; top:0; bottom:0; width:6px; background:#ffe27a; }
+  #dust-field { position:relative; height:180px; background:#d9c7a7; border-radius:12px; margin:10px 0; overflow:hidden; border:3px inset #8b5e34; }
+  .dust { position:absolute; width:34px; height:34px; background:radial-gradient(circle,#6b5b4a 30%,#4a3f32 70%); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .dust:hover { transform:scale(1.15); }
+  #hvac-progress { display:flex; gap:8px; margin:10px 0; }
+  .phase { flex:1; text-align:center; font-size:12px; font-weight:900; padding:6px; border-radius:8px; background:#444; }
+  .phase.active { background:#00cec9; color:#000; }
+  .phase.done { background:#00b894; }
+  .hidden { display:none !important; }
+  #wanted-banner { top:64px; left:50%; transform:translateX(-50%); font-size:15px; font-weight:900; color:#fff; background:rgba(214,48,49,.9); padding:6px 18px; border-radius:20px; display:none; }
+  #dialog { bottom:90px; left:50%; transform:translateX(-50%); background:rgba(255,253,245,.96); color:#2d2a26; border:3px solid #8b5e34; border-radius:16px; padding:12px 18px; font-size:14px; max-width:520px; display:none; }
+  #dialog b { color:#e17055; }
+  /* ===== touch / iPhone ===== */
+  html,body { touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  #game canvas { touch-action:none; display:block; }
+  .panel { touch-action:pan-y; -webkit-overflow-scrolling:touch; }
+  #touch-ui { display:none; }
+  body.touch #touch-ui { display:block; }
+  #stick-zone { position:fixed; left:0; bottom:0; width:45%; height:60%; z-index:20; touch-action:none; }
+  #stick-base { position:fixed; left:26px; bottom:calc(80px + env(safe-area-inset-bottom,0px)); width:120px; height:120px; border-radius:50%; background:rgba(20,24,32,.4); border:2px solid rgba(255,255,255,.5); z-index:21; pointer-events:none; }
+  #stick { position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.85); border:2px solid rgba(0,0,0,.2); transform:translate(-50%,-50%); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+  #action-btns { position:fixed; right:10px; bottom:calc(20px + env(safe-area-inset-bottom,0px)); z-index:21; display:grid; grid-template-columns:repeat(2,64px); gap:10px; }
+  .tbtn { pointer-events:auto; width:64px; height:64px; border-radius:50%; border:2px solid rgba(255,255,255,.6); background:rgba(20,24,32,.72); color:#fff; font-weight:900; font-size:12px; line-height:1.25; touch-action:manipulation; backdrop-filter:blur(4px); font-family:inherit; }
+  .tbtn:active { background:#00cec9; color:#000; transform:scale(.94); }
+  #pump-btn,#tap-btn { display:none; width:100%; padding:18px; margin-top:10px; border-radius:14px; border:none; background:#00cec9; color:#000; font-weight:900; font-size:18px; touch-action:manipulation; font-family:inherit; }
+  #pump-btn:active,#tap-btn:active { background:#ffe27a; }
+  body.touch #pump-btn.stage-on, body.touch #tap-btn.stage-on { display:block; }
+  body.touch .dust { width:52px; height:52px; font-size:26px; }
+  @media (max-width:760px) {
+    #topbar { padding:6px; }
+    .pill { font-size:11px; padding:6px 9px; border-radius:10px; }
+    #bells { font-size:14px; }
+    #stats { flex-wrap:wrap; gap:6px; max-width:58vw; }
+    #minimap { width:104px; height:104px; }
+    #minimap-wrap { padding:4px; }
+    #jobs { top:132px; width:172px; }
+    .job-card { font-size:11px; padding:7px 9px; }
+    #jobs .job-card:nth-child(n+3) { display:none; }
+    #controls-hint { display:none; }
+    #speedo { bottom:calc(172px + env(safe-area-inset-bottom,0px)); right:10px; }
+    #toast { bottom:250px; }
+    #dialog { bottom:250px; left:8px; right:8px; transform:none; max-width:none; font-size:13px; }
+    #wanted-banner { font-size:12px; top:118px; max-width:92vw; text-align:center; }
+    .marker .ico { font-size:20px; }
+    .marker .lbl { font-size:11px; }
+    .panel { padding:20px; }
+    .panel h1 { font-size:24px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="topbar" class="hud">
+  <div id="stats">
+    <div class="pill">🔔 <span id="bells">500</span> bells &nbsp;|&nbsp; 🔧 <span id="rep">0</span> rep</div>
+    <div class="pill">⭐ <span id="stars">☆☆☆☆☆</span></div>
+    <div class="pill" id="mode-pill">🚐 Driving service van</div>
+  </div>
+  <div id="right">
+    <div class="pill"><span id="clock">☀️ 10:00</span> &nbsp; 🌡️ <span id="outside">30.0°C</span> &nbsp; 🏠 <span id="fixed">0</span> fixed</div>
+    <div id="minimap-wrap"><canvas id="minimap" width="170" height="170"></canvas></div>
+  </div>
+</div>
+
+<div id="jobs" class="hud"></div>
+<div id="toast" class="hud"></div>
+<div id="controls-hint" class="hud"><div class="pill">
+<b>WASD</b> move / drive &nbsp;<b>Mouse drag</b> camera &nbsp;<b>Wheel</b> zoom<br>
+<b>E</b> enter/exit van · shake tree · talk &nbsp;<b>F</b> HVAC repair &nbsp;<b>H</b> HEIST at bank<br>
+<b>Space</b> handbrake &nbsp;<b>P</b> pause &nbsp;<b>M</b> mute
+</div></div>
+<div id="speedo" class="hud"><div class="pill"><b id="speed">0</b> km/h<br><span id="loc">Nook Plaza</span></div></div>
+<div id="crosshair" class="hud">＋</div>
+<div id="touch-ui">
+  <div id="stick-zone"><div id="stick-base"><div id="stick"></div></div></div>
+  <div id="action-btns">
+    <button class="tbtn" id="btn-e">✋<br>E</button>
+    <button class="tbtn" id="btn-f">🔧<br>F</button>
+    <button class="tbtn" id="btn-h">💰<br>H</button>
+    <button class="tbtn" id="btn-brake">🛑<br>BRK</button>
+  </div>
+</div>
+<div id="wanted-banner" class="hud">🚨 WASTED? No — WANTED! Outrun the cops! 🚨</div>
+<div id="dialog" class="hud"></div>
+<div id="markers"></div>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h1>🏝️ Nook Theft Auto V:<br><span>Cool Crossing</span> ❄️🔧</h1>
+    <div class="tagrow">
+      <span class="tag" style="background:#27ae60">ANIMAL CROSSING cozy life</span>
+      <span class="tag" style="background:#8e44ad">GTA V open world + wanted</span>
+      <span class="tag" style="background:#0984e3">HVAC SIMULATOR repair</span>
+      <span class="tag" style="background:#e17055">3D DESKTOP + 📱 IPHONE</span>
+    </div>
+    <p>You are <b>Timmy the Technician</b>, the island's only HVAC hero. Cozy villagers love you. The cops... tolerate you.</p>
+    <p>🌡️ <b>HVAC loop:</b> AC units break (🔥 smoke). Drive your <b>NOOK & COOL service van</b> to the house, hop out, press <kbd>F</kbd> and complete the 3-stage repair: <b>clean filter → seal leak → recharge refrigerant</b>. Earn bells + rep. Hot houses = bigger tips!</p>
+    <p>🚗 <b>GTA loop:</b> steal apples, shake trees for bells, attempt the <b>Nook Bank HEIST</b> (<kbd>H</kbd> at bank = +1000 bells, +3 stars). Don't bonk villagers or traffic! Cops chase you — escape or get BUSTED (lose 20%).</p>
+    <p>🏡 <b>Cozy loop:</b> talk to animal neighbors (<kbd>E</kbd> near them), enjoy day/night, keep the island at 22°C.</p>
+    <p style="background:#fff3cd;border-radius:10px;padding:8px;">🎮 <b>Desktop:</b> WASD + mouse · <b>📱 iPhone:</b> left stick to move/drive, drag right side to look, buttons to interact. Start in your van. Follow the 🧊 markers!</p>
+    <button class="btn" id="start-btn">▶ Start Shift — 500 bells bonus</button>
+    <p style="font-size:12px;opacity:.7">Three.js 3D · no downloads · runs in browser desktop</p>
+  </div>
+</div>
+
+<div id="hvac" class="overlay">
+  <div class="panel">
+    <h2 id="hvac-title">❄️ HVAC Repair — House 1 · 31.2°C</h2>
+    <div id="hvac-progress">
+      <div class="phase" id="ph1">1. Clean filter</div>
+      <div class="phase" id="ph2">2. Seal leak</div>
+      <div class="phase" id="ph3">3. Recharge</div>
+    </div>
+    <div id="stage1">
+      <p>Click all <b>8 dust bunnies</b> clogging the filter! Dirty filter = no airflow.</p>
+      <div id="dust-field"></div>
+    </div>
+    <div id="stage2" class="hidden">
+      <p>Hold <kbd>MOUSE / SPACE / 🔧 PUMP</kbd> to pump, release to vent. Keep the needle in the <b style="color:#00b894">GREEN</b> for 8 seconds to braze the leak!</p>
+      <div id="gauge-wrap">
+        <div id="pressure-bar"><div id="needle" style="left:50%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;"><span>LOW</span><span id="hold-time">0.0s / 8s</span><span>HIGH</span></div>
+      </div>
+      <button id="pump-btn">🔧 HOLD TO PUMP</button>
+    </div>
+    <div id="stage3" class="hidden">
+      <p>Press <kbd>SPACE / CLICK / ⚡ TAP</kbd> when the cursor is in the green zone. Hit <b>3 times</b>!</p>
+      <div id="gauge-wrap">
+        <div id="recharge-bar"><div id="recharge-zone"></div><div id="recharge-cursor"></div></div>
+        <div style="margin-top:6px;font-size:14px;">Hits: <span id="hits">0 / 3</span></div>
+      </div>
+      <button id="tap-btn">⚡ TAP!</button>
+    </div>
+    <p id="hvac-msg" style="min-height:22px;font-weight:900;color:#ffe27a"></p>
+    <button class="btn red" id="hvac-quit">✖ Abandon job (Esc)</button>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="panel"><h1>⏸️ Paused</h1><p>Island timesheet frozen. AC units wait for no one.</p>
+  <button class="btn blue" id="resume-btn">Resume</button></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ================= STATE ================= */
+const S = {
+  started:false, paused:false, muted:false,
+  bells:500, rep:0, fixed:0, wanted:0, wantedHeat:0,
+  time:10.0, outside:31, inVan:true,
+  keys:{}, camYaw:0.6, camPitch:0.35, camDist:11, touch:{jx:0,jy:0,brake:false},
+  vel:new THREE.Vector3(), vanSpeed:0, vanHeading:0.5,
+  hvacOpen:false, hvacHouse:null, stage:0,
+  heistCooldown:0, breakTimer:12, bustedTimer:0,
+};
+const HOUSES = [], VILLAGERS=[], TRAFFIC=[], TREES=[];
+let player, van, police, scene, camera, renderer, clock;
+let playerPos, vanPos;
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+function toast(msg){ const d=document.createElement('div'); d.className='toast-msg'; d.textContent=msg; $('toast').appendChild(d); setTimeout(()=>d.remove(),3000); }
+function say(html,ms=3500){ const d=$('dialog'); d.innerHTML=html; d.style.display='block'; clearTimeout(say.t); say.t=setTimeout(()=>d.style.display='none',ms); }
+const rand=(a,b)=>a+Math.random()*(b-a);
+const dist2=(a,b)=>{ const dx=a.x-b.x,dz=a.z-b.z; return Math.sqrt(dx*dx+dz*dz); };
+const DIALOGS=[
+  "<b>Fauna 🦌:</b> My AC sounds like a raccoon in a blender. Help!",
+  "<b>Bob 🐱:</b> I buried fish in the condenser again. Sorry. Not sorry.",
+  "<b>Tom Nook 🏦:</b> Yes yes, repair bills have zero interest! ...for 30 seconds.",
+  "<b>Marshal 🐿️:</b> Drive safe! I lick windows, not bumpers.",
+  "<b>Rosie 😺:</b> If my house hits 30°C my ice cream becomes soup!",
+  "<b>K.K. 🎸:</b> This heat wave is NOT groovy, man. Fix it.",
+];
+
+/* ================= WORLD BUILD ================= */
+function mat(c){ return new THREE.MeshStandardMaterial({color:c, roughness:.85}); }
+function makeHouse(i,x,z,rotY,color,name){
+  const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=rotY;
+  const base=new THREE.Mesh(new THREE.BoxGeometry(8,4,7),mat(color)); base.position.y=2; base.castShadow=true; g.add(base);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(6.4,3,4),mat(0x8b5e34)); roof.position.y=5.5; roof.rotation.y=Math.PI/4; roof.castShadow=true; g.add(roof);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(1.4,2.4,.2),mat(0x5b3a1e)); door.position.set(0,1.2,3.55); g.add(door);
+  for(const sx of [-2.4,2.4]){ const w=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.4,.15),new THREE.MeshStandardMaterial({color:0xbfefff,emissive:0x88ccff,emissiveIntensity:.35})); w.position.set(sx,2.4,3.55); g.add(w); }
+  // AC outdoor unit
+  const ac=new THREE.Group(); ac.position.set(5.2,0,1.5);
+  const acb=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.2,1.1),mat(0xdfe6e9)); acb.position.y=.6; acb.castShadow=true; ac.add(acb);
+  const fan=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.1,16),mat(0x636e72)); fan.rotation.x=Math.PI/2; fan.position.set(0,.65,.6); ac.add(fan);
+  g.add(ac);
+  // smoke when broken
+  const smoke=new THREE.Group(); smoke.position.set(5.2,2,1.5); smoke.visible=false;
+  for(let k=0;k<6;k++){ const s=new THREE.Mesh(new THREE.SphereGeometry(.35,8,8),new THREE.MeshBasicMaterial({color:0x555555,transparent:true,opacity:.6})); s.position.set(rand(-.5,.5),k*.6,rand(-.5,.5)); s.userData.off=Math.random()*10; smoke.add(s); }
+  g.add(smoke);
+  scene.add(g);
+  const h={i,name,pos:new THREE.Vector3(x,0,z),group:g,fan,smoke,broken:false,inside:rand(23,27),color,
+    marker:document.createElement('div')};
+  h.marker.className='marker'; h.marker.innerHTML='<span class="ico">🔥</span><span class="lbl"></span>'; h.marker.style.display='none';
+  $('markers').appendChild(h.marker); HOUSES.push(h); return h;
+}
+function makeTree(x,z){
+  const g=new THREE.Group(); g.position.set(x,0,z);
+  const t=new THREE.Mesh(new THREE.CylinderGeometry(.35,.5,2.6,8),mat(0x7a4a21)); t.position.y=1.3; t.castShadow=true; g.add(t);
+  const c1=new THREE.Mesh(new THREE.SphereGeometry(1.7,10,10),mat(0x2d9e44)); c1.position.y=3.4; c1.castShadow=true; g.add(c1);
+  for(let k=0;k<4;k++){ const a=new THREE.Mesh(new THREE.SphereGeometry(.28,8,8),mat(0xff6b6b)); a.position.set(rand(-1.3,1.3),rand(2.6,4.2),rand(-1.3,1.3)); a.userData.apple=true; g.add(a); }
+  scene.add(g); const tr={pos:new THREE.Vector3(x,0,z),group:g,apples:4,shakeCd:0}; TREES.push(tr); return tr;
+}
+function makeVillager(name,emoji,color){
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.CapsuleGeometry(.55,.7,4,10),mat(color)); b.position.y=1; b.castShadow=true; g.add(b);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.55,12,12),mat(color)); head.position.y=2.1; head.castShadow=true; g.add(head);
+  const e1=new THREE.Mesh(new THREE.ConeGeometry(.2,.5,6),mat(color)); e1.position.set(-.35,2.75,0); g.add(e1);
+  const e2=e1.clone(); e2.position.x=.35; g.add(e2);
+  const eyeM=mat(0x111111);
+  for(const sx of [-.2,.2]){ const e=new THREE.Mesh(new THREE.SphereGeometry(.09,8,8),eyeM); e.position.set(sx,2.15,.5); g.add(e); }
+  const label=document.createElement('div'); label.className='marker'; label.innerHTML=`<span class="ico">${emoji}</span><span class="lbl">${name}</span>`;
+  $('markers').appendChild(label);
+  scene.add(g);
+  const v={name,emoji,group:g,label,pos:g.position,target:new THREE.Vector3(rand(-40,40),0,rand(-40,40)),speed:rand(1,2),wait:0};
+  g.position.set(rand(-40,40),0,rand(-40,40)); VILLAGERS.push(v); return v;
+}
+function makeCar(color,isPolice=false){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,1,4.4),new THREE.MeshStandardMaterial({color,roughness:.4,metalness:.3})); body.position.y=.9; body.castShadow=true; g.add(body);
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,.8,2.2),new THREE.MeshStandardMaterial({color:0x222831,roughness:.2,metalness:.4})); cab.position.set(0,1.7,-.2); g.add(cab);
+  const wg=new THREE.CylinderGeometry(.45,.45,.4,12);
+  const wm=mat(0x111111);
+  for(const [sx,sz] of [[-1.1,1.4],[1.1,1.4],[-1.1,-1.4],[1.1,-1.4]]){ const w=new THREE.Mesh(wg,wm); w.rotation.z=Math.PI/2; w.position.set(sx,.45,sz); g.add(w); }
+  if(isPolice){ const bar=new THREE.Mesh(new THREE.BoxGeometry(1.4,.3,.6),new THREE.MeshStandardMaterial({color:0x0000ff,emissive:0x0000ff,emissiveIntensity:1})); bar.position.y=2.3; bar.userData.siren=true; g.add(bar); g.userData.bar=bar; }
+  scene.add(g); return g;
+}
+function makeVan(){
+  const g=makeCar(0x00b894); g.scale.setScalar(1.15);
+  // cargo + sign
+  const c=document.createElement('canvas'); c.width=256; c.height=64; const x=c.getContext('2d');
+  x.fillStyle='#fff'; x.fillRect(0,0,256,64); x.fillStyle='#0984e3'; x.font='bold 26px sans-serif'; x.fillText('❄ NOOK & COOL',8,40);
+  const tex=new THREE.CanvasTexture(c);
+  const sign=new THREE.Mesh(new THREE.BoxGeometry(2.3,.7,.1),new THREE.MeshBasicMaterial({map:tex})); sign.position.set(0,1.5,2.25); g.add(sign);
+  return g;
+}
+function makePlayer(){
+  const g=new THREE.Group();
+  const legs=new THREE.Mesh(new THREE.BoxGeometry(.6,1,.5),mat(0x2d3436)); legs.position.y=.5; g.add(legs);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.9,1,.6),mat(0x00cec9)); body.position.y=1.5; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.5,12,12),mat(0xffd9b3)); head.position.y=2.4; head.castShadow=true; g.add(head);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.52,.55,.3,12),mat(0xe17055)); cap.position.y=2.8; g.add(cap);
+  const tool=new THREE.Mesh(new THREE.BoxGeometry(.15,.9,.15),mat(0x888888)); tool.position.set(.6,1.5,.2); tool.rotation.z=.4; g.add(tool);
+  scene.add(g); return g;
+}
+
+/* ================= INIT ================= */
+function init(){
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x87ceeb); scene.fog=new THREE.Fog(0x87ceeb,80,220);
+  camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,500);
+  renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.domElement.className='webgl'; $('game').appendChild(renderer.domElement);
+  clock=new THREE.Clock();
+  scene.add(new THREE.HemisphereLight(0xbfefff,0x6a994e,0.9));
+  const sun=new THREE.DirectionalLight(0xfff2cc,1.6); sun.position.set(40,60,20); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-70; sun.shadow.camera.right=70; sun.shadow.camera.top=70; sun.shadow.camera.bottom=-70;
+  scene.add(sun); scene.userData.sun=sun;
+  // ground
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240),mat(0x7ec850)); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+  // roads (grid)
+  const roadM=mat(0x2d3436);
+  for(const c of [-20,20]){
+    const r1=new THREE.Mesh(new THREE.PlaneGeometry(120,.02>0?10:10,1,1),roadM); r1.rotation.x=-Math.PI/2; r1.position.set(0,.02,c); r1.receiveShadow=true; scene.add(r1);
+    const r2=new THREE.Mesh(new THREE.PlaneGeometry(10,120),roadM); r2.rotation.x=-Math.PI/2; r2.position.set(c,.02,0); r2.receiveShadow=true; scene.add(r2);
+  }
+  // plaza
+  const plaza=new THREE.Mesh(new THREE.CircleGeometry(9,24),new THREE.MeshStandardMaterial({color:0xf5e6c8})); plaza.rotation.x=-Math.PI/2; plaza.position.set(0,.03,0); scene.add(plaza);
+  const fountain=new THREE.Mesh(new THREE.CylinderGeometry(2,2.5,1.2,12),mat(0xaaaaaa)); fountain.position.set(0,.6,0); fountain.castShadow=true; scene.add(fountain);
+  const water=new THREE.Mesh(new THREE.CylinderGeometry(1.7,1.7,.3,12),new THREE.MeshStandardMaterial({color:0x74b9ff,transparent:true,opacity:.8})); water.position.set(0,1.2,0); scene.add(water);
+  // bank (heist target)
+  const bank=new THREE.Group(); bank.position.set(34,0,-34);
+  const bb=new THREE.Mesh(new THREE.BoxGeometry(10,6,8),mat(0xfdcb6e)); bb.position.y=3; bb.castShadow=true; bank.add(bb);
+  const col=new THREE.Mesh(new THREE.BoxGeometry(11,1,9),mat(0xffffff)); col.position.y=6.2; bank.add(col);
+  const vault=new THREE.Mesh(new THREE.BoxGeometry(2,2.5,.3),mat(0x2d3436)); vault.position.set(0,1.4,4.05); bank.add(vault);
+  scene.add(bank); scene.userData.bankPos=new THREE.Vector3(34,0,-34);
+  const bl=document.createElement('div'); bl.className='marker'; bl.id='bank-marker'; bl.innerHTML='<span class="ico">🏦</span><span class="lbl">NOOK BANK — press H for HEIST</span>'; $('markers').appendChild(bl); scene.userData.bankMarker=bl;
+  // houses
+  const defs=[['Fauna’s Burrow',-38,-32,0.6,0xf9ca24],['Bob’s Bungalow',-38,32,-0.6,0x6c5ce7],['Rosie’s Cottage',38,32,2.5,0xfd79a8],['Marshal’s Loft',38,-8, -1.5,0x00cec9],['K.K. Studio',-38,8,1.5,0xe17055],['Nook Garage',8,-38,0,0x74b9ff],['Able Loft',-8,38,3.14,0xa29bfe],['Blathers Lab',38,12,-1.5,0xffeaa7]];
+  defs.forEach((d,i)=>makeHouse(i,d[1],d[2],d[3],d[4],d[0]));
+  // trees
+  for(let i=0;i<26;i++){ let x,z,tries=0; do{ x=rand(-55,55); z=rand(-55,55); tries++; }while(tries<20 && (Math.abs(x)<13||Math.abs(z)<13||Math.abs(Math.abs(x)-20)<5||Math.abs(Math.abs(z)-20)<5)); makeTree(x,z); }
+  // villagers
+  makeVillager('Fauna','🦌',0xd8a47f); makeVillager('Bob','🐱',0x9b59b6); makeVillager('Rosie','😺',0xfd79a8);
+  makeVillager('Marshal','🐿️',0xecf0f1); makeVillager('K.K.','🎸',0x636e72); makeVillager('Blathers','🦉',0x8d6e63);
+  // traffic
+  const tcols=[0xd63031,0x0984e3,0xfdcb6e];
+  for(let i=0;i<3;i++){ const g=makeCar(tcols[i]); const t={g,t:Math.random()*100,speed:rand(7,10),lane:i}; TRAFFIC.push(t); }
+  // van + player + police
+  van=makeVan(); vanPos=new THREE.Vector3(4,0,6); van.position.copy(vanPos); scene.add(van); S.vanHeading=0.5;
+  player=makePlayer(); playerPos=new THREE.Vector3(7,0,8); player.position.copy(playerPos); player.visible=false; scene.add(player);
+  police=makeCar(0xffffff,true); police.position.set(-30,0,-20); scene.add(police); police.visible=false;
+  // van marker
+  const vm=document.createElement('div'); vm.className='marker'; vm.id='van-marker'; vm.innerHTML='<span class="ico">🚐</span><span class="lbl">Service van</span>'; $('markers').appendChild(vm); scene.userData.vanMarker=vm;
+  // break 2 houses at start
+  breakRandomHouse(); breakRandomHouse();
+  bindInput(); requestAnimationFrame(loop);
+  updateJobsUI();
+}
+
+function breakRandomHouse(){
+  const ok=HOUSES.filter(h=>!h.broken); if(!ok.length) return;
+  const h=ok[Math.floor(Math.random()*ok.length)]; h.broken=true; h.smoke.visible=true;
+  toast(`🔥 ${h.name} AC broke! ${h.inside.toFixed(1)}°C and rising!`); say(`📞 <b>Dispatch:</b> ${h.name} needs HVAC! Follow the 🔥 marker!`);
+  updateJobsUI();
+}
+
+/* ================= INPUT ================= */
+function bindInput(){
+  addEventListener('keydown',e=>{
+    if(['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+    S.keys[e.code]=true;
+    if(e.code=='KeyE') doInteract();
+    if(e.code=='KeyF') tryOpenHVAC();
+    if(e.code=='KeyH') tryHeist();
+    if(e.code=='KeyP'){ S.paused=!S.paused; $('pause').classList.toggle('hidden',!S.paused); }
+    if(e.code=='KeyM'){ S.muted=!S.muted; toast(S.muted?'🔇 muted':'🔊 sound-ish (vroom)'); }
+    if(e.code=='Escape'&&S.hvacOpen) closeHVAC(false);
+    if((e.code=='Space')&&S.stage===2) S.hvacHold=true;
+  });
+  addEventListener('keyup',e=>{ S.keys[e.code]=false; if(e.code=='Space') S.hvacHold=false; });
+  let drag=false,lx=0,ly=0;
+  addEventListener('mousedown',e=>{ if(S.hvacOpen) return; if(e.target.closest('.overlay,.btn,.pill,#touch-ui')) return; drag=true; lx=e.clientX; ly=e.clientY; if(S.stage===2) S.hvacHold=true; });
+  addEventListener('mousemove',e=>{ if(!drag) return; S.camYaw-=(e.clientX-lx)*.005; S.camPitch=Math.min(1.2,Math.max(.08,S.camPitch+(e.clientY-ly)*.004)); lx=e.clientX; ly=e.clientY; });
+  addEventListener('mouseup',()=>{ drag=false; S.hvacHold=false; });
+  addEventListener('wheel',e=>{ S.camDist=Math.min(24,Math.max(5,S.camDist+e.deltaY*.01)); },{passive:true});
+  $('start-btn').onclick=()=>{ $('menu').style.display='none'; S.started=true; toast('🔧 Shift started! Follow 🔥 to your first HVAC job!'); };
+  $('resume-btn').onclick=()=>{ S.paused=false; $('pause').classList.add('hidden'); };
+  $('hvac-quit').onclick=()=>closeHVAC(false);
+  initTouch();
+  addEventListener('orientationchange',()=>setTimeout(()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); },250));
+  addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+}
+
+/* ================= ACTIONS ================= */
+function nearestHouse(p,maxD=9){ let best=null,bd=maxD; for(const h of HOUSES){ const d=dist2(p,h.pos); if(d<bd){bd=d;best=h;} } return best; }
+function doInteract(){
+  if(!S.started||S.paused||S.hvacOpen) return;
+  const pos=S.inVan?vanPos:playerPos;
+  if(S.inVan){
+    // exit van
+    S.inVan=false; player.visible=true; playerPos.copy(vanPos).add(new THREE.Vector3(2.5,0,0)); player.position.copy(playerPos);
+    $('mode-pill').textContent='🚶 On foot — find AC unit, press F'; toast('🚶 Hopped out. Press F near a smoking AC!');
+  } else {
+    // near van? re-enter
+    if(dist2(playerPos,vanPos)<4.5){ S.inVan=true; player.visible=false; $('mode-pill').textContent='🚐 Driving service van'; return; }
+    // near tree? shake
+    for(const t of TREES){ if(dist2(playerPos,t.pos)<3.5&&t.shakeCd<=0){ t.shakeCd=5; t.group.rotation.z=.15; setTimeout(()=>t.group.rotation.z=0,300);
+      if(t.apples>0){ t.apples--; const gain=25+t.apples*5; S.bells+=gain; toast(`🍎 Shook tree! +${gain} bells!`); }
+      else { S.bells+=10; toast('🍃 Leaves... +10 bells (recycling!)'); } updateHUD(); return; } }
+    // near villager? talk
+    for(const v of VILLAGERS){ if(dist2(playerPos,v.pos)<3.5){ say(DIALOGS[Math.floor(Math.random()*DIALOGS.length)]); S.bells+=5; updateHUD(); return; } }
+    toast('Nothing here. Get in van (walk to 🚐, press E) or find 🔥 houses.');
+  }
+}
+function tryOpenHVAC(){
+  if(S.inVan){ toast('🚐 Hop OUT first (E), then walk to the smoking AC unit!'); return; }
+  const h=nearestHouse(playerPos,8);
+  if(!h){ toast('No AC unit in range. Look for 🔥 smoke markers!'); return; }
+  if(!h.broken){ toast(`✅ ${h.name} AC is fine (${h.inside.toFixed(1)}°C). Nice and cool!`); return; }
+  openHVAC(h);
+}
+function tryHeist(){
+  if(S.heistCooldown>0){ toast(`🏦 Cops still watching... ${Math.ceil(S.heistCooldown)}s`); return; }
+  const bp=scene.userData.bankPos; const pos=S.inVan?vanPos:playerPos;
+  if(dist2(pos,bp)>12){ toast('🏦 Get closer to Nook Bank (south-east, 💰 marker)!'); return; }
+  S.bells+=1000; S.rep+=5; S.wanted=Math.min(5,S.wanted+3); S.wantedHeat=30; S.heistCooldown=60;
+  toast('💰 HEIST! +1000 bells! Tom Nook is FURIOUS! RUN!'); say('<b>Tom Nook 🏦:</b> BELLIONAIRE BETRAYAL! Security! SECURITY!');
+  updateHUD();
+}
+function addWanted(n,why){ S.wanted=Math.min(5,S.wanted+n); S.wantedHeat=25; if(n>0) toast(`🚨 Wanted +${n}! ${why}`); updateHUD(); }
+
+/* ================= HVAC MINIGAME ================= */
+let dustLeft=0, holdT=0, needleP=50, needleV=0, cursor=0, cursorDir=1, hitsN=0, zoneL=30, zoneW=22;
+function openHVAC(h){
+  S.hvacOpen=true; S.hvacHouse=h; S.stage=0; showStage(0);
+  $('hvac').style.display='flex'; $('hvac-title').textContent=`❄️ HVAC Repair — ${h.name} · ${h.inside.toFixed(1)}°C inside`;
+  // build dust
+  const f=$('dust-field'); f.innerHTML=''; dustLeft=8;
+  for(let i=0;i<8;i++){ const d=document.createElement('div'); d.className='dust'; d.textContent='🟤';
+    d.style.left=rand(4,86)+'%'; d.style.top=rand(6,76)+'%';
+    d.onclick=()=>{ d.remove(); dustLeft--; $('hvac-msg').textContent=`Filter cleaned: ${8-dustLeft}/8`; if(dustLeft<=0) showStage(1); }; f.appendChild(d); }
+  holdT=0; needleP=50; needleV=0; hitsN=0; cursor=0; $('hits').textContent='0 / 3';
+  newZone();
+}
+function newZone(){ zoneL=rand(15,63); zoneW=rand(16,24); const z=$('recharge-zone'); z.style.left=zoneL+'%'; z.style.width=zoneW+'%'; }
+function showStage(n){
+  S.stage=n;
+  ['ph1','ph2','ph3'].forEach((id,i)=>{ $(id).className='phase'+(i<n?' done':i===n?' active':''); });
+  $('stage1').classList.toggle('hidden',n!==0); $('stage2').classList.toggle('hidden',n!==1); $('stage3').classList.toggle('hidden',n!==2);
+  $('pump-btn').classList.toggle('stage-on',n===1); $('tap-btn').classList.toggle('stage-on',n===2);
+  $('hvac-msg').textContent=n===1?'Hold to pump!':n===2?'Time your presses!':'';
+}
+function closeHVAC(done){
+  $('hvac').style.display='none'; S.hvacOpen=false; S.hvacHold=false;
+  if(done&&S.hvacHouse){ const h=S.hvacHouse; h.broken=false; h.smoke.visible=false; h.inside=22;
+    const tip=Math.round((h.inside<24?100:60)+Math.max(0,(30-h.inside))*8+rand(40,120));
+    S.bells+=tip; S.rep+=10; S.fixed++;
+    toast(`✅ Fixed ${h.name}! +${tip} bells! Island rep +10`); say(`<b>${h.name}:</b> Sooo cooool! ❄️ Thank you!! (+${tip} bells)`);
+    if(S.wanted>0){ S.wanted=Math.max(0,S.wanted-1); toast('⭐ Good karma! Wanted -1'); }
+  }
+  S.hvacHouse=null; updateHUD(); updateJobsUI();
+}
+function hvacUpdate(dt){
+  if(!S.hvacOpen) return;
+  if(S.stage===1){
+    if(S.hvacHold||S.keys['Space']) needleV+=90*dt; else needleV-=70*dt;
+    needleV*= (1-1.4*dt); needleV+=Math.sin(performance.now()*.004)*20*dt;
+    needleP+=needleV*dt; if(needleP<0){needleP=0;needleV=0;} if(needleP>100){needleP=100;needleV=0;}
+    $('needle').style.left=`calc(${needleP}% - 3px)`;
+    if(needleP>35&&needleP<65){ holdT+=dt; $('hvac-msg').textContent=`Brazing... ${(holdT).toFixed(1)}s / 8s — HOLD IT!`; } 
+    else { holdT=Math.max(0,holdT-dt*1.5); $('hvac-msg').textContent='⚠️ Needle out of green! Leak cooling...'; }
+    $('hold-time').textContent=`${holdT.toFixed(1)}s / 8s`;
+    if(holdT>=8){ showStage(2); $('hvac-msg').textContent='Leak sealed! Now recharge!'; }
+  }
+  if(S.stage===2){
+    cursor+=cursorDir*dt*70; if(cursor>100){cursor=100;cursorDir=-1;} if(cursor<0){cursor=0;cursorDir=1;}
+    $('recharge-cursor').style.left=`calc(${cursor}% - 3px)`;
+    if(S.keys['Space']&&!hvacUpdate.cd){ hvacUpdate.cd=true; setTimeout(()=>hvacUpdate.cd=false,280); rechargeHit(); }
+  }
+}
+$('recharge-bar')?.addEventListener?.('click',()=>{ if(S.stage===2) rechargeHit(); });
+document.addEventListener('mousedown',e=>{ if(S.hvacOpen&&S.stage===2&&e.target.closest('#gauge-wrap')) rechargeHit(); });
+let hitCd=false;
+function rechargeHit(){
+  if(hitCd||S.stage!==2) return; hitCd=true; setTimeout(()=>hitCd=false,300);
+  if(cursor>=zoneL&&cursor<=zoneL+zoneW){ hitsN++; $('hits').textContent=`${hitsN} / 3`; $('hvac-msg').textContent=`✅ Charge ${hitsN}/3! Nice!`; newZone();
+    if(hitsN>=3){ $('hvac-msg').textContent='❄️ FULLY CHARGED!'; setTimeout(()=>closeHVAC(true),700); } }
+  else $('hvac-msg').textContent='❌ Missed! Watch the timing...';
+}
+
+/* ================= UI ================= */
+function updateHUD(){
+  $('bells').textContent=S.bells; $('rep').textContent=S.rep; $('fixed').textContent=S.fixed;
+  $('stars').textContent='★'.repeat(S.wanted)+'☆'.repeat(5-S.wanted);
+  $('outside').textContent=S.outside.toFixed(1)+'°C';
+  const hh=Math.floor(S.time), mm=Math.floor((S.time-hh)*60);
+  $('clock').textContent=(S.time>6&&S.time<19?'☀️':'🌙')+` ${hh}:${String(mm).padStart(2,'0')}`;
+  $('wanted-banner').style.display=S.wanted>0?'block':'none';
+}
+function updateJobsUI(){
+  const j=$('jobs'); j.innerHTML='';
+  const broken=HOUSES.filter(h=>h.broken);
+  if(!broken.length){ j.innerHTML='<div class="job-card" style="border-color:#00b894">✅ All ACs purring! Enjoy the island 🏝️</div>'; return; }
+  for(const h of broken.slice(0,4)){
+    const d=document.createElement('div'); d.className='job-card'+(h.inside>29?' urgent':'');
+    d.innerHTML=`🔥 <b>${h.name}</b><br>🌡️ ${h.inside.toFixed(1)}°C ${h.inside>29?'— URGENT, melting!':''}<br><span style="opacity:.8">Drive there → E out → F repair</span>`;
+    j.appendChild(d);
+  }
+}
+
+/* ================= LOOP ================= */
+const tmpV=new THREE.Vector3();
+function projectTo(el,worldPos,hideDist=200){
+  tmpV.copy(worldPos); tmpV.y+=7; tmpV.project(camera);
+  if(tmpV.z>1){ el.style.display='none'; return; }
+  const x=(tmpV.x*.5+.5)*innerWidth, y=(-tmpV.y*.5+.5)*innerHeight;
+  el.style.display='block'; el.style.left=x+'px'; el.style.top=y+'px';
+}
+function collide(pos,r=1.2){
+  for(const h of HOUSES){ const dx=pos.x-h.pos.x,dz=pos.z-h.pos.z;
+    if(Math.abs(dx)<5.5&&Math.abs(dz)<5){ if(Math.abs(dx)>Math.abs(dz)) pos.x=h.pos.x+Math.sign(dx)*5.5; else pos.z=h.pos.z+Math.sign(dz)*5; } }
+  for(const t of TREES){ const d=dist2(pos,t.pos); if(d<1.4){ const a=Math.atan2(pos.x-t.pos.x,pos.z-t.pos.z); pos.x=t.pos.x+Math.sin(a)*1.4; pos.z=t.pos.z+Math.cos(a)*1.4; } }
+  pos.x=Math.max(-58,Math.min(58,pos.x)); pos.z=Math.max(-58,Math.min(58,pos.z));
+}
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(.05,clock.getDelta());
+  if(!S.started){ renderer.render(scene,camera); return; }
+  if(S.paused||S.hvacOpen){ hvacUpdate(dt); renderer.render(scene,camera); return; }
+  // time + temp
+  S.time+=dt*.15; if(S.time>=24) S.time=0;
+  const dayF=(Math.sin((S.time-9)/24*Math.PI*2)+1)/2;
+  S.outside=27+dayF*7;
+  const sunI=.5+dayF*.9; scene.userData.sun.intensity=sunI;
+  scene.background.setHSL(.58,.6,.35+dayF*.35);
+  for(const h of HOUSES){
+    if(h.broken){ h.inside+=dt*(0.5+(S.outside-h.inside)*.02); h.smoke.children.forEach(s=>{ s.position.y+=dt*1.2; s.material.opacity=.5; if(s.position.y>4){s.position.y=0;} }); h.fan.rotation.z+=dt*.5; }
+    else { h.inside+=(22-h.inside)*dt*.08; h.fan.rotation.z+=dt*12; }
+  }
+  S.breakTimer-=dt; if(S.breakTimer<=0){ S.breakTimer=rand(18,30); if(HOUSES.filter(h=>h.broken).length<4) breakRandomHouse(); }
+  if(S.heistCooldown>0) S.heistCooldown-=dt;
+  // movement
+  const k=S.keys;
+  if(S.inVan){
+    let acc=0;
+    if(k['KeyW']||k['ArrowUp']) acc+=22; if(k['KeyS']||k['ArrowDown']) acc-=12;
+    if(Math.abs(S.touch.jy)>0.15) acc+=-S.touch.jy*22;
+    if(k['Space']||S.touch.brake) S.vanSpeed*= (1-3*dt);
+    S.vanSpeed+=(acc-S.vanSpeed*.8)*dt;
+    if(k['KeyA']||k['ArrowLeft']) S.vanHeading+=dt*(1.6/(1+Math.abs(S.vanSpeed)*.04))*(S.vanSpeed>=0?1:-1);
+    if(k['KeyD']||k['ArrowRight']) S.vanHeading-=dt*(1.6/(1+Math.abs(S.vanSpeed)*.04))*(S.vanSpeed>=0?1:-1);
+    if(Math.abs(S.touch.jx)>0.12) S.vanHeading-=S.touch.jx*dt*(1.6/(1+Math.abs(S.vanSpeed)*.04))*(S.vanSpeed>=0?1:-1);
+    vanPos.x+=Math.sin(S.vanHeading)*S.vanSpeed*dt; vanPos.z+=Math.cos(S.vanHeading)*S.vanSpeed*dt;
+    const preX=vanPos.x, preZ=vanPos.z; collide(vanPos,1.6);
+    if(Math.abs(preX-vanPos.x)+Math.abs(preZ-vanPos.z)>0.01&&Math.abs(S.vanSpeed)>9){ if(!loop.crashCd||performance.now()>loop.crashCd){ loop.crashCd=performance.now()+1500; addWanted(1,'Reckless driving!'); S.bells=Math.max(0,S.bells-15); } S.vanSpeed*=.4; }
+    van.position.copy(vanPos); van.rotation.y=S.vanHeading;
+    // hit villagers?
+    for(const v of VILLAGERS){ if(dist2(vanPos,v.pos)<1.8&&Math.abs(S.vanSpeed)>4){ v.pos.set(rand(-40,40),0,rand(-40,40)); v.group.position.copy(v.pos); addWanted(1,`You bonked ${v.name}! 😱`); say(`<b>${v.name}:</b> OW! My tail!! I saw stars... literally. ⭐`); S.vanSpeed*=.3; } }
+    // hit traffic?
+    for(const t of TRAFFIC){ if(dist2(vanPos,t.g.position)<3.4){ addWanted(1,'Hit and run!'); S.vanSpeed*=.3; t.g.position.x+=rand(-4,4); } }
+    // speeding near plaza?
+    if(Math.abs(S.vanSpeed)*3.6>45&&Math.hypot(vanPos.x,vanPos.z)<16&&(!loop.speedCd||performance.now()>loop.speedCd)){ loop.speedCd=performance.now()+8000; addWanted(1,'Speeding through the plaza!'); }
+  } else {
+    let mx=0,mz=0;
+    const f=new THREE.Vector3(-Math.sin(S.camYaw),0,-Math.cos(S.camYaw));
+    const r=new THREE.Vector3(-f.z,0,f.x);
+    if(k['KeyW']||k['ArrowUp']){mx+=f.x;mz+=f.z;} if(k['KeyS']||k['ArrowDown']){mx-=f.x;mz-=f.z;}
+    if(k['KeyA']||k['ArrowLeft']){mx-=r.x;mz-=r.z;} if(k['KeyD']||k['ArrowRight']){mx+=r.x;mz+=r.z;}
+    if(Math.abs(S.touch.jx)>0.15||Math.abs(S.touch.jy)>0.15){ mx+=f.x*(-S.touch.jy)+r.x*S.touch.jx; mz+=f.z*(-S.touch.jy)+r.z*S.touch.jx; }
+    const l=Math.hypot(mx,mz)||1; playerPos.x+=mx/l*(k['ShiftLeft']?9:5.5)*dt*(mx||mz?1:0); playerPos.z+=mz/l*(k['ShiftLeft']?9:5.5)*dt*(mx||mz?1:0);
+    collide(playerPos); player.position.copy(playerPos);
+    if(mx||mz) player.rotation.y=Math.atan2(mx,mz);
+  }
+  // villagers wander
+  for(const v of VILLAGERS){
+    v.wait-=dt;
+    if(v.wait<=0){ if(dist2(v.pos,v.target)<2){ v.target.set(rand(-45,45),0,rand(-45,45)); v.wait=rand(0,3);} }
+    else continue;
+    const d=dist2(v.pos,v.target);
+    if(d>1){ const a=Math.atan2(v.target.x-v.pos.x,v.target.z-v.pos.z); v.pos.x+=Math.sin(a)*v.speed*dt; v.pos.z+=Math.cos(a)*v.speed*dt; v.group.rotation.y=a; }
+    v.group.position.copy(v.pos); v.group.position.y=Math.abs(Math.sin(performance.now()*.005))*0.08;
+  }
+  // traffic loop on roads
+  for(const t of TRAFFIC){
+    t.t+=dt*t.speed;
+    const m=t.t%240; let x,z,hd;
+    if(t.lane===0){ x=-60+m; z=-20+1.8; hd=Math.PI/2; } else if(t.lane===1){ x=60-m; z=20-1.8; hd=-Math.PI/2; } else { z=-60+m; x=20-1.8; hd=0; }
+    if(t.lane===2){ t.g.position.set(x,0,z); t.g.rotation.y=Math.atan2(0,1); t.g.rotation.y=0; }
+    else { t.g.position.set(x,0,z); t.g.rotation.y=hd; }
+  }
+  // police
+  if(S.wanted>0){
+    police.visible=true; S.wantedHeat-=dt;
+    const target=S.inVan?vanPos:playerPos;
+    const dx=target.x-police.position.x, dz=target.z-police.position.z; const d=Math.hypot(dx,dz);
+    const sp=10+S.wanted*2.2;
+    police.position.x+=dx/d*sp*dt; police.position.z+=dz/d*sp*dt;
+    police.rotation.y=Math.atan2(dx,dz);
+    if(scene.userData.bar) scene.userData.bar.material.emissive.setHex(Math.floor(performance.now()/300)%2?0xff0000:0x0000ff);
+    if(d<(S.inVan?3.4:2.2)){
+      // busted
+      const fine=Math.round(S.bells*.2); S.bells-=fine; S.wanted=0; S.wantedHeat=0; police.visible=false;
+      police.position.set(target.x+rand(-20,20),0,target.z+rand(-20,20));
+      toast(`🚔 BUSTED! Fine -${fine} bells. Tom Nook sends regards.`); say('<b>Officer Copper 🐶:</b> Cozy island, UNCOZY driving! License and registration!');
+      if(S.inVan){ S.vanSpeed=0; }
+    }
+    if(S.wantedHeat<=0){ S.wanted=Math.max(0,S.wanted-1); S.wantedHeat=S.wanted>0?20:0; if(S.wanted===0){ police.visible=false; toast('😮‍💨 You lost the cops!'); } updateHUD(); }
+  } else police.visible=false;
+  if(S.bustedTimer>0) S.bustedTimer-=dt;
+  // trees cooldown
+  for(const t of TREES) if(t.shakeCd>0) t.shakeCd-=dt;
+  // camera
+  const focus=S.inVan?vanPos:playerPos;
+  const cx=focus.x+Math.sin(S.camYaw)*Math.cos(S.camPitch)*S.camDist;
+  const cz=focus.z+Math.cos(S.camYaw)*Math.cos(S.camPitch)*S.camDist;
+  const cy=Math.sin(S.camPitch)*S.camDist+2.5;
+  camera.position.lerp(new THREE.Vector3(cx,cy,cz),1-Math.pow(.001,dt));
+  camera.lookAt(focus.x,focus.y+2,focus.z);
+  // HUD
+  $('speed').textContent=Math.round(Math.abs(S.vanSpeed)*3.6);
+  const dPlaza=Math.hypot(focus.x,focus.z);
+  $('loc').textContent=dPlaza<12?'Nook Plaza':dist2(focus,scene.userData.bankPos)<14?'Nook Bank 💰':(nearestHouse(focus,12)?.name||'Cool Crossing');
+  if(Math.floor(performance.now()/500)!==loop.hudT){ loop.hudT=Math.floor(performance.now()/500); updateHUD(); if(Math.random()<.3) updateJobsUI(); }
+  hvacUpdate(dt);
+  drawMinimap(); updateMarkers();
+  renderer.render(scene,camera);
+}
+function updateMarkers(){
+  for(const h of HOUSES){
+    if(h.broken){ h.marker.style.display='block'; h.marker.querySelector('.lbl').textContent=`${h.name} ${h.inside.toFixed(0)}°C — F to fix`; projectTo(h.marker,h.pos); }
+    else h.marker.style.display='none';
+  }
+  const bp=scene.userData.bankPos;
+  if(dist2(S.inVan?vanPos:playerPos,bp)<40) projectTo(scene.userData.bankMarker,bp); else scene.userData.bankMarker.style.display='none';
+  for(const v of VILLAGERS) { if(camera.position.distanceTo(v.group.position)<45) projectTo(v.label,v.pos); else v.label.style.display='none'; }
+  if(!S.inVan) projectTo(scene.userData.vanMarker,vanPos); else scene.userData.vanMarker.style.display='none';
+}
+function drawMinimap(){
+  const c=$('minimap'), x=c.getContext('2d'); const W=170, sc=W/130;
+  x.fillStyle='#7ec850'; x.fillRect(0,0,W,W);
+  x.strokeStyle='#333'; x.lineWidth=5;
+  x.beginPath(); x.moveTo(0,W/2-20*sc+65*sc-65*sc); x.stroke();
+  // roads
+  x.fillStyle='#555';
+  const rx=v=>(v+65)*sc;
+  x.fillRect(0,rx(-20)-4,W,8); x.fillRect(0,rx(20)-4,W,8); x.fillRect(rx(-20)-4,0,8,W); x.fillRect(rx(20)-4,0,8,W);
+  x.fillStyle='#f5e6c8'; x.beginPath(); x.arc(rx(0),rx(0),8,0,7); x.fill();
+  const dot=(wx,wz,col,r=3)=>{ x.fillStyle=col; x.beginPath(); x.arc(rx(wx),rx(wz),r,0,7); x.fill(); };
+  for(const h of HOUSES) dot(h.pos.x,h.pos.z,h.broken?'#ff0000':'#fff',h.broken?4:2.5);
+  for(const v of VILLAGERS) dot(v.pos.x,v.pos.z,'#ffe27a',2.5);
+  dot(34,-34,'#00ff00',5);
+  dot(police.position.x,police.position.z,'#0000ff',3);
+  dot(vanPos.x,vanPos.z,'#00cec9',4);
+  if(!S.inVan) dot(playerPos.x,playerPos.z,'#ff6b6b',3);
+  x.strokeStyle='#fff'; x.strokeRect(0,0,W,W);
+}
+
+/* ================= TOUCH (iPhone) ================= */
+function initTouch(){
+  const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+  if(!isTouch) return;
+  document.body.classList.add('touch');
+  // action buttons (touch + mouse fallback for hybrids)
+  const tap=(id,fn)=>{ const el=$(id); if(!el) return;
+    el.addEventListener('touchstart',e=>{ e.preventDefault(); fn(true); },{passive:false});
+    el.addEventListener('touchend',e=>{ e.preventDefault(); fn(false); },{passive:false});
+    el.addEventListener('touchcancel',()=>fn(false));
+    el.addEventListener('mousedown',e=>{ e.preventDefault(); fn(true); });
+    el.addEventListener('mouseup',()=>fn(false));
+  };
+  tap('btn-e',down=>{ if(down) doInteract(); });
+  tap('btn-f',down=>{ if(down) tryOpenHVAC(); });
+  tap('btn-h',down=>{ if(down) tryHeist(); });
+  tap('btn-brake',down=>{ S.touch.brake=down; S.keys['Space']=down; });
+  tap('pump-btn',down=>{ S.hvacHold=down; });
+  const tapBtn=$('tap-btn');
+  tapBtn.addEventListener('touchstart',e=>{ e.preventDefault(); rechargeHit(); },{passive:false});
+  tapBtn.addEventListener('mousedown',e=>{ e.preventDefault(); rechargeHit(); });
+  // virtual joystick (floating origin, left half)
+  const zone=$('stick-zone'), knob=$('stick'), base=$('stick-base');
+  let joyId=null, ox=0, oy=0; const R=48;
+  zone.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.changedTouches[0]; joyId=t.identifier; ox=t.clientX; oy=t.clientY;
+    base.style.left=(ox-60)+'px'; base.style.top=(oy-60)+'px'; base.style.bottom='auto';
+  },{passive:false});
+  zone.addEventListener('touchmove',e=>{ e.preventDefault();
+    for(const t of e.changedTouches){ if(t.identifier!==joyId) continue;
+      let dx=t.clientX-ox, dy=t.clientY-oy; const l=Math.hypot(dx,dy);
+      if(l>R){ dx=dx/l*R; dy=dy/l*R; }
+      S.touch.jx=dx/R; S.touch.jy=dy/R;
+      knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+    }
+  },{passive:false});
+  const joyEnd=e=>{ for(const t of e.changedTouches){ if(t.identifier!==joyId) continue;
+    joyId=null; S.touch.jx=0; S.touch.jy=0; knob.style.transform='translate(-50%,-50%)';
+    base.style.left=''; base.style.top=''; base.style.bottom=''; } };
+  zone.addEventListener('touchend',joyEnd); zone.addEventListener('touchcancel',joyEnd);
+  // camera: one-finger drag on canvas, two-finger pinch zoom
+  const cv=renderer.domElement; let camId=null, lx=0, ly=0, pinch=0;
+  cv.addEventListener('touchstart',e=>{ e.preventDefault();
+    if(e.touches.length===1){ camId=e.touches[0].identifier; lx=e.touches[0].clientX; ly=e.touches[0].clientY; }
+    else if(e.touches.length===2){ pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); camId=null; }
+  },{passive:false});
+  cv.addEventListener('touchmove',e=>{ e.preventDefault();
+    if(e.touches.length===2){ const p=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      S.camDist=Math.min(24,Math.max(5,S.camDist-(p-pinch)*.05)); pinch=p; return; }
+    for(const t of e.touches){ if(t.identifier!==camId) continue;
+      S.camYaw-=(t.clientX-lx)*.008; S.camPitch=Math.min(1.2,Math.max(.08,S.camPitch+(t.clientY-ly)*.006)); lx=t.clientX; ly=t.clientY; }
+  },{passive:false});
+  const camEnd=e=>{ if(e.touches.length===0) camId=null; };
+  cv.addEventListener('touchend',camEnd); cv.addEventListener('touchcancel',camEnd);
+  document.addEventListener('gesturestart',e=>e.preventDefault());
+  document.addEventListener('contextmenu',e=>{ if(document.body.classList.contains('touch')) e.preventDefault(); });
+  setTimeout(()=>{ if(S.started) return; toast('📱 Touch mode: left stick = move/drive · drag right side = camera'); },1000);
+}
+
+init();
+updateHUD();
+</script>
+</body>
+</html>
